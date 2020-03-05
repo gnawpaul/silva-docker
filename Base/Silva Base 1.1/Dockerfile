@@ -1,48 +1,13 @@
 ###########################
 # 
-# Silva/base: 1.0
+# Silva/base: 1.1
 # 
-# 2/25/2020
+# 3/5/2020
 #
 #
 
 ARG BASE_CONTAINER=jupyter/scipy-notebook
 FROM $BASE_CONTAINER
-
-
-USER root
-
-#### Some custom code
-
-RUN apt-get update && \
-    apt-get install -y htop && \
-    apt-get install -y pciutils && \ 
-    apt-get install -y lm-sensors && \
-    rm -rf /var/lib/apt/lists/*
-#
-#
-##End custom code
-
-
-USER $NB_UID
-
-# Install some goodies
-
-RUN conda install -c conda-forge jupyter_contrib_nbextensions --quiet --yes     && \
-    conda install -c conda-forge 'jupyterlab-nvdashboard' 'pynvml' --quiet --yes && \
-    conda clean --all -f -y  && \
-    fix-permissions $CONDA_DIR && \
-    fix-permissions /home/$NB_USER && \
-    jupyter labextension install jupyterlab-nvdashboard --no-build && \
-    jupyter labextension install @krassowski/jupyterlab_go_to_definition@^0.7.1 --no-build && \
-    jupyter labextension install @jupyterlab/toc@1.0.1 --no-build && \
-    jupyter lab build && \
-    npm cache clean --force && \
-    rm -rf $CONDA_DIR/share/jupyter/lab/staging && \
-    rm -rf /home/$NB_USER/.cache/yarn && \
-    rm -rf /home/$NB_USER/.node-gyp && \
-    fix-permissions $CONDA_DIR && \
-    fix-permissions /home/$NB_USER
 
 
 ######## Cuda (nvidia/cuda):10.1 cudnn:7.6.5.32
@@ -122,13 +87,64 @@ libcudnn7-dev=$CUDNN_VERSION-1+cuda10.1 \
     rm -rf /var/lib/apt/lists/*
 
 
-## End of cuda installation
-
 ## Set paths for cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
 ENV CPATH=/usr/local/cuda/include:$CPATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 
+
+
+############## End cuda installation 
+
+USER root
+
+#### Some custom code
+
+RUN apt-get update && \
+    apt-get install -y htop && \
+    apt-get install -y pciutils && \ 
+    apt-get install -y lm-sensors && \
+    rm -rf /var/lib/apt/lists/*
+#
+#
+##End custom code
+
+
+USER $NB_UID
+
+# Install some goodies
+
+
+Run conda install --quiet --yes -c conda-forge \
+          'jupyter_contrib_nbextensions' \
+          'jupyterlab-nvdashboard' \ 
+          'pynvml' \
+          'ipympl=0.5.3'
+RUN conda install -c --quiet --yes \
+                   'bokeh' \
+                   'jupyter_bokeh' && \
+    conda clean --all -f -y   && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER && \
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
+    jupyter labextension install @bokeh/jupyter_bokeh && \
+    jupyter labextension install jupyterlab-nvdashboard --no-build && \
+    jupyter labextension install @krassowski/jupyterlab_go_to_definition@^0.7.1 --no-build && \
+    jupyter labextension install @jupyterlab/toc@1.0.1 --no-build && \
+    jupyter labextension install jupyter-matplotlib --no-build && \
+    jupyter labextension update --all && \
+    jupyter lab build && \
+    npm cache clean --force && \
+    rm -rf $CONDA_DIR/share/jupyter/lab/staging && \
+    rm -rf /home/$NB_USER/.cache/yarn && \
+    rm -rf /home/$NB_USER/.node-gyp && \
+    fix-permissions $CONDA_DIR && \
+    fix-permissions /home/$NB_USER
+
+
+
+
+########## End Custom Code
 # Switch back to jovyan to avoid accidental container runs as root
 USER $NB_UID

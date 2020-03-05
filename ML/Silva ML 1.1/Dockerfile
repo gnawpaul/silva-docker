@@ -1,13 +1,14 @@
 ###########################
 # 
-# Silva/base: 1.0
+# Silva/ml: 1.1
 # 
-# 2/25/2020
+# 3/5/2020
 #
 #
 
-ARG BASE_CONTAINER=jupyter/scipy-notebook
+ARG BASE_CONTAINER=jupyter/all-spark-notebook
 FROM $BASE_CONTAINER
+
 
 
 USER root
@@ -26,16 +27,26 @@ RUN apt-get update && \
 
 USER $NB_UID
 
-# Install some goodies
+# Install tensorflow, pytorch, cudatoolkit, keras, and other goodies for the jupyter notebook
 
-RUN conda install -c conda-forge jupyter_contrib_nbextensions --quiet --yes     && \
-    conda install -c conda-forge 'jupyterlab-nvdashboard' 'pynvml' --quiet --yes && \
-    conda clean --all -f -y  && \
-    fix-permissions $CONDA_DIR && \
-    fix-permissions /home/$NB_USER && \
-    jupyter labextension install jupyterlab-nvdashboard --no-build && \
+
+RUN conda install -c anaconda tensorflow-gpu --yes && \
+    conda install -c anaconda keras-gpu  --yes && \
+    conda install -c anaconda pillow --yes && \
+    conda install pytorch torchvision cudatoolkit=10.1 -c pytorch --yes
+RUN conda install -c conda-forge 'jupyterlab-nvdashboard' 'pynvml' 'ipympl>=0.5' 'jupyter_contrib_nbextensions' --yes && \
+    conda install --yes bokeh && \
+    conda install --yes -c bokeh 'jupyter_bokeh' && \
+    conda clean --all -f -y
+RUN pip install torch-scatter==latest+cu101 torch-sparse==latest+cu101 -f https://s3.eu-central-1.amazonaws.com/pytorch-geometric.com/whl/torch-1.4.0.html && \
+    pip install torch-cluster && \
+    pip install torch-spline-conv && \
+    pip install torch-geometric
+RUN jupyter labextension install jupyterlab-nvdashboard --no-build && \
     jupyter labextension install @krassowski/jupyterlab_go_to_definition@^0.7.1 --no-build && \
     jupyter labextension install @jupyterlab/toc@1.0.1 --no-build && \
+    jupyter labextension install jupyter-matplotlib --no-build && \
+    jupyter labextension update --all && \
     jupyter lab build && \
     npm cache clean --force && \
     rm -rf $CONDA_DIR/share/jupyter/lab/staging && \
@@ -43,6 +54,7 @@ RUN conda install -c conda-forge jupyter_contrib_nbextensions --quiet --yes     
     rm -rf /home/$NB_USER/.node-gyp && \
     fix-permissions $CONDA_DIR && \
     fix-permissions /home/$NB_USER
+
 
 
 ######## Cuda (nvidia/cuda):10.1 cudnn:7.6.5.32
@@ -122,12 +134,13 @@ libcudnn7-dev=$CUDNN_VERSION-1+cuda10.1 \
     rm -rf /var/lib/apt/lists/*
 
 
-## End of cuda installation
-
 ## Set paths for cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
 ENV CPATH=/usr/local/cuda/include:$CPATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+
+####################### End of cuda installation
 
 
 # Switch back to jovyan to avoid accidental container runs as root
